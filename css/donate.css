@@ -44,7 +44,7 @@ a{
 	width: 70px;
 	height: 70px;
 	line-height: 70px;
-	color: #fff;
+	color: rgb(255, 0, 0);
 	background: #ffd886 url(../img/like.svg) no-repeat center 10px;
 	background-size: 20px;
 	border-radius: 35px;
