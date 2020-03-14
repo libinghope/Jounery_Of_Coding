@@ -2,6 +2,13 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>https://libinghope.github.io/2.6/</loc>
+    
+    <lastmod>2020-03-14T08:38:06.000Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>https://libinghope.github.io/2.1/</loc>
     
     <lastmod>2020-03-14T08:22:48.000Z</lastmod>
@@ -12,13 +19,6 @@
     <loc>https://libinghope.github.io/2.5/</loc>
     
     <lastmod>2020-03-14T08:19:05.000Z</lastmod>
-    
-  </url>
-  
-  <url>
-    <loc>https://libinghope.github.io/2.6/</loc>
-    
-    <lastmod>2020-03-14T07:43:04.000Z</lastmod>
     
   </url>
   
