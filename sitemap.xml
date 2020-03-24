@@ -2,6 +2,20 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>https://libinghope.github.io/chapter/index.html</loc>
+    
+    <lastmod>2020-03-24T09:24:17.000Z</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>https://libinghope.github.io/3.24/</loc>
+    
+    <lastmod>2020-03-24T02:11:09.000Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>https://libinghope.github.io/4.2/</loc>
     
     <lastmod>2020-03-23T17:40:07.000Z</lastmod>
@@ -128,13 +142,6 @@
   </url>
   
   <url>
-    <loc>https://libinghope.github.io/chapter/index.html</loc>
-    
-    <lastmod>2020-03-23T13:48:26.000Z</lastmod>
-    
-  </url>
-  
-  <url>
     <loc>https://libinghope.github.io/004%E7%BC%96%E8%AF%91%E5%8E%9F%E7%90%86%E4%B9%8B%E7%BE%8E/4.0readme/</loc>
     
     <lastmod>2020-03-23T13:44:20.000Z</lastmod>
@@ -152,13 +159,6 @@
     <loc>https://libinghope.github.io/3.22/</loc>
     
     <lastmod>2020-03-19T07:59:07.000Z</lastmod>
-    
-  </url>
-  
-  <url>
-    <loc>https://libinghope.github.io/3.23/</loc>
-    
-    <lastmod>2020-03-19T07:27:44.000Z</lastmod>
     
   </url>
   
