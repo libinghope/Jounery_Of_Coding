@@ -1,0 +1,102 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description" content=""><title>异地多活设计4大技巧 | bing 写字儿的地方</title><link rel="stylesheet" type="text/css" href="/journey-of-coding/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/normalize/8.0.1/normalize.min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/pure-min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/grids-responsive-min.css"><link rel="stylesheet" href="//lib.baomitu.com/font-awesome/4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//lib.baomitu.com/jquery/3.4.0/jquery.min.js"></script><link rel="icon" mask="" sizes="any" href="/journey-of-coding/favicon.ico"><link rel="Shortcut Icon" type="image/x-icon" href="/journey-of-coding/favicon.ico"><link rel="apple-touch-icon" href="/journey-of-coding/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/journey-of-coding/apple-touch-icon.png"><script>var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = 'https://hm.baidu.com/hm.js?' + '3568baf0ea52551ecddb25d5e48e7b5a';
+  var s = document.getElementsByTagName("script")[0];
+  s.parentNode.insertBefore(hm, s);
+  })();</script><meta name="generator" content="Hexo 4.2.0"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">异地多活设计4大技巧</h1><a id="logo" href="/journey-of-coding/.">bing 写字儿的地方</a><p class="description">写写学习coding的历程，有时记也录下自己的心情</p></div><div id="nav-menu"><a class="current" href="/journey-of-coding/."><i class="fa fa-home"> 首页</i></a><a href="/journey-of-coding/chapter"><i class="fa fa-book"> 章节</i></a><a href="/journey-of-coding/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/journey-of-coding/about/"><i class="fa fa-user"> 关于</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">异地多活设计4大技巧</h1><div class="post-meta">Mar 30, 2020<span> | </span><span class="category"><a href="/journey-of-coding/categories/%E8%BD%AF%E4%BB%B6%E6%9E%B6%E6%9E%84/">软件架构</a></span></div><a class="disqus-comment-count" href="/journey-of-coding/5.28/#vcomment"><span class="valine-comment-count" data-xid="/journey-of-coding/5.28/"></span><span> 条评论</span></a><div class="post-content"><h2 id="技巧-1：保证核心业务的异地多活"><a href="#技巧-1：保证核心业务的异地多活" class="headerlink" title="技巧 1：保证核心业务的异地多活"></a>技巧 1：保证核心业务的异地多活</h2><p>“异地多活”是为了保证业务的高可用，但并不是说所有的业务都必须要异地多活。</p>
+<p>假设我们需要做一个“用户子系统”，这个子系统负责“注册”“登录”“用户信息”三个业务。为了支持海量用户，我们设计了一个“用户分区”的架构，即正常情况下用户属于某个主分区，每个分区都有其他数据的备份，用户用邮箱或者手机号注册，路由层拿到邮箱或者手机号后，通过 Hash 计算属于哪个中心，然后请求对应的业务中心。基本的架构如下：<br><img src="https://pic.downk.cc/item/5e81f4c7504f4bcb0454e745.jpg" alt="架构示意图"></p>
+<p>这样一个系统，如果 3 个业务要同时实现异地多活，会发现这些难以解决的问题：</p>
+<ul>
+<li>注册问题</li>
+</ul>
+<p>A 中心注册了用户，数据还未同步到 B 中心，此时 A 中心宕机，为了支持注册业务多活，可以挑选 B 中心让用户去重新注册。看起来很容易就支持多活了，但仔细思考一下会发现这样做会有问题：一个手机号只能注册一个账号，A 中心的数据没有同步过来，B 中心无法判断这个手机号是否重复，如果 B 中心让用户注册，后来 A 中心恢复了，发现数据有冲突，怎么解决？实际上是无法解决的，因为同一个手机号注册的账号不能以后一次注册为准；而如果 B 中心不支持本来属于 A 中心的业务进行注册，注册业务的多活又成了空谈。</p>
+<p>如果我们修改业务规则，允许一个手机号注册多个账号不就可以了吗？</p>
+<p>这样做是不可行的，类似一个手机号只能注册一个账号这种规则，是核心业务规则，修改核心业务规则的代价非常大，几乎所有的业务都要重新设计，为了架构设计去改变业务规则（而且是这么核心的业务规则）是得不偿失的。</p>
+<ul>
+<li>用户信息问题</li>
+</ul>
+<p>用户信息的修改和注册有类似的问题，即 A、B 两个中心在异常的情况下都修改了用户信息，如何处理冲突？由于用户信息并没有账号那么关键，一种简单的处理方式是按照时间合并，即最后修改的生效。</p>
+<p>业务逻辑上没问题，但实际操作也有一个很关键的“坑”：怎么保证多个中心所有机器时间绝对一致？在异地多中心的网络下，这个是无法保证的，即使有时间同步也无法完全保证，只要两个中心的时间误差超过 1 秒，数据就可能出现混乱，即先修改的反而生效。</p>
+<p>还有一种方式是生成全局唯一递增 ID，这个方案的成本很高，因为这个全局唯一递增 ID 的系统本身又要考虑异地多活，同样涉及数据一致性和冲突的问题。综合上面的简单分析可以发现，如果“注册”“登录”“用户信息”全部都要支持异地多活，实际上是挺难的，有的问题甚至是无解的。那这种情况下我们应该如何考虑“异地多活”的架构设计呢？</p>
+<p>答案其实很简单：优先实现核心业务的异地多活架构！对于这个模拟案例来说，“登录”才是最核心的业务，“注册”和“用户信息”虽然也是主要业务，但并不一定要实现异地多活，主要原因在于业务影响不同。对于一个日活 1000 万的业务来说，每天注册用户可能是几万，修改用户信息的可能还不到 1 万，但登录用户是 1000 万，很明显我们应该保证登录的异地多活。</p>
+<p>对于新用户来说，注册不了的影响并不明显，因为他还没有真正开始使用业务。用户信息修改也类似，暂时修改不了用户信息，对于其业务不会有很大影响。而如果有几百万用户登录不了，就相当于几百万用户无法使用业务，对业务的影响就非常大了：公司的客服热线很快就被打爆，微博、微信上到处都在传业务宕机，论坛里面到处是抱怨的用户，那就是互联网大事件了！</p>
+<p>而登录实现“异地多活”恰恰是最简单的，因为每个中心都有所有用户的账号和密码信息，用户在哪个中心都可以登录。用户在 A 中心登录，A 中心宕机后，用户到 B 中心重新登录即可。</p>
+<p>如果某个用户在 A 中心修改了密码，此时数据还没有同步到 B 中心，用户到 B 中心登录是无法登录的，这个怎么处理？这个问题其实就涉及另外一个设计技巧了，这个问题稍后再谈。</p>
+<h2 id="技巧-2：保证核心数据最终一致性"><a href="#技巧-2：保证核心数据最终一致性" class="headerlink" title="技巧 2：保证核心数据最终一致性"></a>技巧 2：保证核心数据最终一致性</h2><p>异地多活本质上是通过异地的数据冗余，来保证在极端异常的情况下业务也能够正常提供给用户，因此数据同步是异地多活架构设计的核心。</p>
+<p>但大部分架构师在考虑数据同步方案时，会不知不觉地陷入完美主义误区：我要所有数据都实时同步！</p>
+<p>数据冗余是要将数据从 A 地同步到 B 地，从业务的角度来看是越快越好，最好和本地机房一样的速度最好。</p>
+<p>但让人头疼的问题正在这里：异地多活理论上就不可能很快，因为这是物理定律决定的（在上一期已有说明）。因此异地多活架构面临一个无法彻底解决的矛盾：业务上要求数据快速同步，物理上正好做不到数据快速同步，因此所有数据都实时同步，实际上是一个无法达到的目标。</p>
+<p>矛盾无法彻底解决，那就将影响尽可能的减小。常用的几个方法：</p>
+<ul>
+<li>尽量减少异地多活机房的距离，搭建高速网络</li>
+</ul>
+<p>这和上一节讲到的同城异区架构类似，但搭建跨城异地的高速网络成本远远超过同城异区的高速网络，成本巨大，一般只有巨头公司才能承担。</p>
+<ul>
+<li>尽量减少数据同步，只同步核心业务相关的数据</li>
+</ul>
+<p>简单来说就是不重要的数据不同步，同步后没用的数据不同步，只同步核心业务相关的数据。</p>
+<p>以前面的“用户子系统”为例，用户登录所产生的 token 或者 session 信息，数据量很大，但其实并不需要同步到其他业务中心，因为这些数据丢失后重新登录就可以再次获取了。</p>
+<p>这时你可能会想到：这些数据丢失后要求用户重新登录，影响用户体验！确实如此，毕竟需要用户重新输入账户和密码信息，或者至少要弹出登录界面让用户点击一次，但相比为了同步所有数据带来的代价，这个影响完全可以接受。为什么这么说呢，还是到后面分析。</p>
+<ul>
+<li>保证最终一致性，不保证实时一致性</li>
+</ul>
+<p>最终一致性就是5.21节在介绍 CAP 理论时提到的 BASE 理论，即业务不依赖数据同步的实时性，只要数据最终能一致即可。</p>
+<p>例如，A 机房注册了一个用户，业务上不要求能够在 50 毫秒内就同步到所有机房，正常情况下要求 5 分钟同步到所有机房即可，异常情况下甚至可以允许 1 小时或者 1 天后能够一致。</p>
+<p>最终一致性在具体实现时，还需要根据不同的数据特征，进行差异化的处理，以满足业务需要。例如，对“账号”信息来说，如果在 A 机房新注册的用户 5 分钟内正好跑到 B 机房了，此时 B 机房还没有这个用户的信息，为了保证业务的正确，B 机房就需要根据路由规则到 A 机房请求数据。而对“用户信息”这个业务来说，5 分钟后同步也没有问题，也不需要采取其他措施来弥补，只是会稍微影响用户体验，用户在5分钟内没有看到修改后的信息(信息还是修改之前的)，这个问题怎么解决呢，后面再说。</p>
+<h2 id="技巧-3：采用多种手段同步数据"><a href="#技巧-3：采用多种手段同步数据" class="headerlink" title="技巧 3：采用多种手段同步数据"></a>技巧 3：采用多种手段同步数据</h2><p>数据同步是异地多活架构设计的核心，幸运的是基本上存储系统本身都会有同步的功能。例如，MySQL 的主备复制、Redis 的 Cluster 功能、Elasticsearch 的集群功能。</p>
+<p>这些系统本身的同步功能已经比较强大，能够直接拿来就用，但这也无形中将我们引入了一个思维误区：只使用存储系统的同步功能！本身的同步功能很强大，为何还说只使用存储系统是一个思维误区呢？</p>
+<p>因为虽然绝大部分场景下，存储系统本身的同步功能基本上也够用了，但在某些比较极端的情况下，存储系统本身的同步功能可能难以满足业务需求。以 MySQL 为例，MySQL 5.1 版本的复制是单线程的复制，在网络抖动或者大量数据同步时，经常发生延迟较长的问题，短则延迟十几秒，长则可能达到十几分钟。而且即使我们通过监控的手段知道了 MySQL 同步时延较长，也难以采取什么措施，只能干等。</p>
+<p>Redis 又是另外一个问题，Redis 3.0 之前没有 Cluster 功能，只有主从复制功能，而为了设计上的简单，Redis 2.8 之前的版本，主从复制有一个比较大的隐患：从机宕机或者和主机断开连接都需要重新连接主机，重新连接主机都会触发全量的主从复制。这时主机会生成内存快照，主机依然可以对外提供服务，但是作为读的从机，就无法提供对外服务了，如果数据量大，恢复的时间会相当长。</p>
+<p>综合上面的案例可以看出，存储系统本身自带的同步功能，在某些场景下是无法满足业务需要的。尤其是异地多机房这种部署，各种各样的异常情况都可能出现，当我们只考虑存储系统本身的同步功能时，就会发现无法做到真正的异地多活。</p>
+<p>解决的方案就是拓开思路，避免只使用存储系统的同步功能，可以将多种手段配合存储系统的同步来使用，甚至可以不采用存储系统的同步方案，改用自己的同步方案。</p>
+<p>还是以前面的“用户子系统”为例，我们可以采用如下几种方式同步数据：</p>
+<ul>
+<li><p>消息队列方式<br>对于账号数据，由于账号只会创建，不会修改和删除（假设我们不提供删除功能），我们可以将账号数据通过消息队列同步到其他业务中心。</p>
+</li>
+<li><p>二次读取方式<br>某些情况下可能出现消息队列同步也延迟了，用户在 A 中心注册，然后访问 B 中心的业务，此时 B 中心本地拿不到用户的账号数据。为了解决这个问题，B 中心在读取本地数据失败时，可以根据路由规则，再去 A 中心访问一次（这就是所谓的二次读取，第一次读取本地，本地失败后第二次读取对端），这样就能够解决异常情况下同步延迟的问题。</p>
+</li>
+<li><p>存储系统同步方式<br>对于密码数据，由于用户改密码频率较低，而且用户不可能在 1 秒内连续改多次密码，所以通过数据库的同步机制将数据复制到其他业务中心即可，用户信息数据和密码类似。</p>
+</li>
+<li><p>回源读取方式<br>对于登录的 session 数据，由于数据量很大，我们可以不同步数据；但当用户在 A 中心登录后，然后又在 B 中心登录，B 中心拿到用户上传的 session id 后，根据路由判断 session 属于 A 中心，直接去 A 中心请求 session 数据即可；反之亦然，A 中心也可以到 B 中心去获取 session 数据。</p>
+</li>
+<li><p>重新生成数据方式<br>对于“回源读取”场景，如果异常情况下，A 中心宕机了，B 中心请求 session 数据失败，此时就只能登录失败，让用户重新在 B 中心登录，生成新的 session 数据。</p>
+<p>注意：以上方案仅仅是示意，实际的设计方案要比这个复杂一些，还有很多细节要考虑。综合上述的各种措施，最后“用户子系统”同步方式整体如下：<br><img src="https://pic.downk.cc/item/5e81fa5d504f4bcb0459662d.jpg" alt="用户子系统整体架构"></p>
+</li>
+</ul>
+<h2 id="技巧-4：只保证绝大部分用户的异地多活"><a href="#技巧-4：只保证绝大部分用户的异地多活" class="headerlink" title="技巧 4：只保证绝大部分用户的异地多活"></a>技巧 4：只保证绝大部分用户的异地多活</h2><p>前面在给出每个思维误区对应的解决方案时，留下了几个问题：</p>
+<p>某些场景下我们无法保证 100% 的业务可用性，总是会有一定的损失。例如，密码不同步导致无法登录、用户信息不同步导致用户看到旧的信息等，这个问题怎么解决呢？</p>
+<p>其实这个问题涉及异地多活架构设计中一个典型的思维误区：我要保证业务 100% 可用！但极端情况下就是会丢一部分数据，就是会有一部分数据不能同步，有没有什么巧妙能做到 100% 可用呢？很遗憾，答案是没有！异地多活也无法保证 100% 的业务可用，这是由物理规律决定的，光速和网络的传播速度、硬盘的读写速度、极端异常情况的不可控等，都是无法 100% 解决的。</p>
+<p>所以针对这个思维误区，最后的答案是“忍”！也就是说我们要忍受这一小部分用户或者业务上的损失，否则本来想为了保证最后的 0.01% 的用户的可用性，做一个完美方案，结果却发现 99.99% 的用户都保证不了了，不能为因小失大。</p>
+<p>对于某些实时强一致性的业务，实际上受影响的用户会更多，甚至可能达到 1/3 的用户。以银行转账这个业务为例，假设小明在北京 XX 银行开了账号，如果小明要转账，一定要北京的银行业务中心才可用，否则就不允许小明自己转账。</p>
+<p>如果不这样的话，假设在北京和上海两个业务中心实现了实时转账的异地多活，某些异常情况下就可能出现小明只有 1 万元存款，他在北京转给了张三 1 万元，然后又到上海转给了李四 1 万元，两次转账都成功了。这种漏洞如果被人利用，后果不堪设想。</p>
+<p>当然，针对银行转账这个业务，虽然无法做到“实时转账”的异地多活，但可以通过特殊的业务手段让转账业务也能实现异地多活。例如，转账业务除了“实时转账”外，还提供“转账申请”业务，即小明在上海业务中心提交转账请求，但上海的业务中心并不立即转账，而是记录这个转账请求，然后后台异步发起真正的转账操作，如果此时北京业务中心不可用，转账请求就可以继续等待重试；假设等待 2 个小时后北京业务中心恢复了，此时上海业务中心去请求转账，发现余额不够，这个转账请求就失败了。小明再登录上来就会看到转账申请失败，原因是“余额不足”。</p>
+<p>不过需要注意的是“转账申请”的这种方式虽然有助于实现异地多活，但其实还是牺牲了用户体验的，对于小明来说，本来一次操作的事情，需要分为两次：一次提交转账申请，另外一次是要确认是否转账成功。</p>
+<p>虽然我们无法做到 100% 可用性，但并不意味着我们什么都不能做，为了让用户心里更好受一些，我们可以采取一些措施进行安抚或者补偿，例如：</p>
+<ul>
+<li><p>挂公告<br>说明现在有问题和基本的问题原因，如果不明确原因或者不方便说出原因，可以发布“技术哥哥正在紧急处理”这类比较轻松和有趣的公告。</p>
+</li>
+<li><p>事后对用户进行补偿<br>例如，送一些业务上可用的代金券、小礼包等，减少用户的抱怨。</p>
+</li>
+<li><p>补充体验<br>对于为了做异地多活而带来的体验损失，可以想一些方法减少或者规避。以“转账申请”为例，为了让用户不用确认转账申请是否成功，我们可以在转账成功或者失败后直接给用户发个短信，告诉他转账结果，这样用户就不用时不时地登录系统来确认转账是否成功了。</p>
+</li>
+</ul>
+<h2 id="核心思想"><a href="#核心思想" class="headerlink" title="核心思想"></a>核心思想</h2><p>异地多活设计的理念可以总结为一句话：采用多种手段，保证绝大部分用户的核心业务异地多活！</p>
+</div><iframe src="/journey-of-coding/donate/?AliPayQR=https://i.loli.net/2020/03/01/p9zFe7XOC6VufSx.jpg&amp;WeChatQR=https://i.loli.net/2020/03/01/p5tMeDmHyxXrNz4.jpg&amp;GitHub=null&amp;BTCQR=null&amp;BTCKEY=null&amp;PayPal=null" style="overflow-x:hidden; overflow-y:hidden; border:0xp none #fff; min-height:240px; width:100%;" frameborder="0" scrolling="no"></iframe><div class="tags"><a href="/journey-of-coding/tags/%E6%9E%B6%E6%9E%84/">架构</a><a href="/journey-of-coding/tags/%E4%B8%9A%E5%8A%A1/">业务</a><a href="/journey-of-coding/tags/%E5%BC%82%E5%9C%B0%E5%A4%9A%E6%B4%BB/">异地多活</a></div><div class="post-nav"><a class="pre" href="/journey-of-coding/5.29/">异地多活设计4步走</a><a class="next" href="/journey-of-coding/5.27/">业务高可用的保障：异地多活架构</a></div><div id="vcomment"></div><script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script><script src="//unpkg.com/valine@latest/dist/Valine.min.js"></script><script>var notify = 'false' ? true : false;
+var verify = 'false' ? true : false;
+var GUEST_INFO = ['nick','mail','link'];
+var guest_info = 'nick,mail,link'.split(',').filter(function(item){
+  return GUEST_INFO.indexOf(item) > -1
+});
+guest_info = guest_info.length == 0 ? GUEST_INFO :guest_info;
+window.valine = new Valine({
+  el:'#vcomment',
+  notify:notify,
+  verify:verify,
+  appId:'meCnSRCi15eMEjaE2H9RbDy9-gzGzoHsz',
+  appKey:'4VIq3rUwuA5gUTs67FEheUPQ',
+  placeholder:'不想说点什么吗?',
+  avatar:'bing',
+  guest_info:guest_info,
+  pageSize:'10'
+})</script></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><form class="search-form" action="//www.baidu.com/baidu" method="get" accept-charset="utf-8" target="_blank"><input type="search" name="word" maxlength="20" placeholder="Search"/><input type="hidden" name="si" value="https://libinghope.github.io"/><input name="tn" type="hidden" value="bds"/><input name="cl" type="hidden" value="3"/><input name="ct" type="hidden" value="2097152"/><input name="s" type="hidden" value="on"/></form></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/journey-of-coding/categories/%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83/">开发环境</a></li><li class="category-list-item"><a class="category-list-link" href="/journey-of-coding/categories/%E5%BF%85%E5%A4%87%E6%8A%80%E8%83%BD/">必备技能</a></li><li class="category-list-item"><a class="category-list-link" href="/journey-of-coding/categories/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/">操作系统</a></li><li class="category-list-item"><a class="category-list-link" href="/journey-of-coding/categories/%E7%AC%94%E8%AE%B0/">笔记</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/journey-of-coding/categories/%E7%AC%94%E8%AE%B0/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/">操作系统</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/journey-of-coding/categories/%E7%BC%96%E8%AF%91%E5%8E%9F%E7%90%86/">编译原理</a></li><li class="category-list-item"><a class="category-list-link" href="/journey-of-coding/categories/%E8%BD%AF%E4%BB%B6%E6%9E%B6%E6%9E%84/">软件架构</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/journey-of-coding/tags/%E5%BC%80%E5%8F%91/" style="font-size: 15px;">开发</a> <a href="/journey-of-coding/tags/%E8%BD%AF%E4%BB%B6/" style="font-size: 15px;">软件</a> <a href="/journey-of-coding/tags/%E9%85%8D%E7%BD%AE/" style="font-size: 15px;">配置</a> <a href="/journey-of-coding/tags/vscode/" style="font-size: 15px;">vscode</a> <a href="/journey-of-coding/tags/%E6%8F%92%E4%BB%B6/" style="font-size: 15px;">插件</a> <a href="/journey-of-coding/tags/%E5%BF%85%E5%A4%87/" style="font-size: 15px;">必备</a> <a href="/journey-of-coding/tags/%E6%8A%80%E8%83%BD/" style="font-size: 15px;">技能</a> <a href="/journey-of-coding/tags/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/" style="font-size: 15px;">操作系统</a> <a href="/journey-of-coding/tags/%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8/" style="font-size: 15px;">系统调用</a> <a href="/journey-of-coding/tags/%E7%BC%96%E7%A8%8B/" style="font-size: 15px;">编程</a> <a href="/journey-of-coding/tags/%E6%AD%A3%E5%88%99/" style="font-size: 15px;">正则</a> <a href="/journey-of-coding/tags/%E7%BA%BF%E7%A8%8B/" style="font-size: 15px;">线程</a> <a href="/journey-of-coding/tags/%E8%BF%9B%E7%A8%8B/" style="font-size: 15px;">进程</a> <a href="/journey-of-coding/tags/%E5%90%8C%E6%AD%A5/" style="font-size: 15px;">同步</a> <a href="/journey-of-coding/tags/%E4%BF%A1%E5%8F%B7%E9%87%8F/" style="font-size: 15px;">信号量</a> <a href="/journey-of-coding/tags/%E8%B0%83%E5%BA%A6/" style="font-size: 15px;">调度</a> <a href="/journey-of-coding/tags/%E5%A4%8D%E6%9D%82%E7%B3%BB%E7%BB%9F/" style="font-size: 15px;">复杂系统</a> <a href="/journey-of-coding/tags/%E5%86%85%E5%AD%98/" style="font-size: 15px;">内存</a> <a href="/journey-of-coding/tags/%E5%88%86%E5%8C%BA/" style="font-size: 15px;">分区</a> <a href="/journey-of-coding/tags/%E6%8D%A2%E5%85%A5%E6%8D%A2%E5%87%BA/" style="font-size: 15px;">换入换出</a> <a href="/journey-of-coding/tags/%E5%86%85%E5%AD%98%E4%BD%BF%E7%94%A8/" style="font-size: 15px;">内存使用</a> <a href="/journey-of-coding/tags/%E5%88%86%E6%AE%B5/" style="font-size: 15px;">分段</a> <a href="/journey-of-coding/tags/%E6%8E%A5%E5%8F%A3/" style="font-size: 15px;">接口</a> <a href="/journey-of-coding/tags/CPU/" style="font-size: 15px;">CPU</a> <a href="/journey-of-coding/tags/%E8%B0%83%E7%94%A8/" style="font-size: 15px;">调用</a> <a href="/journey-of-coding/tags/%E5%88%87%E6%8D%A2/" style="font-size: 15px;">切换</a> <a href="/journey-of-coding/tags/%E7%BC%96%E8%AF%91%E5%8E%9F%E7%90%86/" style="font-size: 15px;">编译原理</a> <a href="/journey-of-coding/tags/%E8%AF%8D%E6%B3%95%E5%88%86%E6%9E%90/" style="font-size: 15px;">词法分析</a> <a href="/journey-of-coding/tags/%E5%89%8D%E7%AB%AF%E6%8A%80%E6%9C%AF/" style="font-size: 15px;">前端技术</a> <a href="/journey-of-coding/tags/%E6%9E%B6%E6%9E%84/" style="font-size: 15px;">架构</a> <a href="/journey-of-coding/tags/%E5%8E%9F%E5%88%99/" style="font-size: 15px;">原则</a> <a href="/journey-of-coding/tags/%E6%96%B9%E6%A1%88/" style="font-size: 15px;">方案</a> <a href="/journey-of-coding/tags/%E5%86%85%E6%A0%B8%E7%BA%BF%E7%A8%8B/" style="font-size: 15px;">内核线程</a> <a href="/journey-of-coding/tags/%E6%A6%82%E5%BF%B5/" style="font-size: 15px;">概念</a> <a href="/journey-of-coding/tags/%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB/" style="font-size: 15px;">读写分离</a> <a href="/journey-of-coding/tags/NoSql/" style="font-size: 15px;">NoSql</a> <a href="/journey-of-coding/tags/PPC/" style="font-size: 15px;">PPC</a> <a href="/journey-of-coding/tags/TPC/" style="font-size: 15px;">TPC</a> <a href="/journey-of-coding/tags/Reactor/" style="font-size: 15px;">Reactor</a> <a href="/journey-of-coding/tags/Proactor/" style="font-size: 15px;">Proactor</a> <a href="/journey-of-coding/tags/%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1/" style="font-size: 15px;">负载均衡</a> <a href="/journey-of-coding/tags/%E5%88%86%E5%BA%93%E5%88%86%E8%A1%A8/" style="font-size: 15px;">分库分表</a> <a href="/journey-of-coding/tags/CAP%E7%90%86%E8%AE%BA/" style="font-size: 15px;">CAP理论</a> <a href="/journey-of-coding/tags/FMEA/" style="font-size: 15px;">FMEA</a> <a href="/journey-of-coding/tags/%E4%B8%9A%E5%8A%A1/" style="font-size: 15px;">业务</a> <a href="/journey-of-coding/tags/%E5%BC%82%E5%9C%B0%E5%A4%9A%E6%B4%BB/" style="font-size: 15px;">异地多活</a> <a href="/journey-of-coding/tags/%E9%AB%98%E5%8F%AF%E7%94%A8/" style="font-size: 15px;">高可用</a> <a href="/journey-of-coding/tags/%E5%A4%8D%E6%9D%82%E5%BA%A6/" style="font-size: 15px;">复杂度</a> <a href="/journey-of-coding/tags/%E9%9B%86%E7%BE%A4/" style="font-size: 15px;">集群</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/journey-of-coding/5.29/">异地多活设计4步走</a></li><li class="post-list-item"><a class="post-list-link" href="/journey-of-coding/5.28/">异地多活设计4大技巧</a></li><li class="post-list-item"><a class="post-list-link" href="/journey-of-coding/5.27/">业务高可用的保障：异地多活架构</a></li><li class="post-list-item"><a class="post-list-link" href="/journey-of-coding/5.26/">如何设计计算高可用架构？</a></li><li class="post-list-item"><a class="post-list-link" href="/journey-of-coding/5.25/">高可用存储架构：集群和分区</a></li><li class="post-list-item"><a class="post-list-link" href="/journey-of-coding/5.24/">高可用存储架构：双机架构</a></li><li class="post-list-item"><a class="post-list-link" href="/journey-of-coding/5.23/">FMEA方法，排除架构可用性隐患的利器</a></li><li class="post-list-item"><a class="post-list-link" href="/journey-of-coding/5.22/">想成为架构师，你必须掌握的CAP细节</a></li><li class="post-list-item"><a class="post-list-link" href="/journey-of-coding/5.21/">想成为架构师，你必须知道CAP理论</a></li><li class="post-list-item"><a class="post-list-link" href="/journey-of-coding/4.3/">纯手工打造词法分析器</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-external-link"> 友情链接</i></div><ul></ul><a href="\#" title="友情链接1" target="_blank">友情链接1</a><ul></ul><a href="\#" title="友情链接2" target="_blank">友情链接2</a><ul></ul><a href="\#" title="友情链接3" target="_blank">友情链接3</a></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2020 <a href="/journey-of-coding/." rel="nofollow">bing 写字儿的地方.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/journey-of-coding/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/journey-of-coding/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css"><script type="text/javascript" src="/journey-of-coding/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/journey-of-coding/js/smartresize.js?v=0.0.0"></script></div></body></html>
